@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rippling Paid Social Agent — Will Hunter</title>
+    <style>
+      :root {
+        --canvas:#f4f3f7; --surface:#fff; --ink:#181423; --ink-soft:#3d3750; --muted:#605a6e;
+        --accent:#a31c7b; --accent-soft:#fbeef6; --accent-line:#e8c4dc;
+        --border:#e3dfea; --border-strong:#cdc7d8; --focus:#f15a24;
+        --shadow:0 18px 48px rgb(24 20 35 / 10%);
+        --ok:#1d7a5f; --warn:#a8442a;
+        font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      }
+      * { box-sizing:border-box; }
+      body { margin:0; min-width:20rem; color:var(--ink); background:var(--canvas); }
+      .deck { display:grid; grid-template-rows:1fr auto; min-height:100vh; padding:clamp(.75rem,2.5vw,2rem); }
+
+      .slide {
+        display:none; position:relative;
+        width:min(100%,78rem); min-height:min(44rem,80vh); margin:auto;
+        padding:clamp(1.5rem,4vw,3.5rem);
+        border:1px solid var(--border); border-radius:1rem; background:var(--surface); box-shadow:var(--shadow);
+      }
+      .slide.is-current { display:grid; align-content:start; gap:1.1rem; }
+      .slide.is-centered.is-current { align-content:center; }
+      .slide--air.is-current { align-content:center; gap:1.75rem; }
+
+      .eyebrow { margin:0; color:var(--accent); font-size:.8rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+      h1,h2,h3 { margin:0; line-height:1.05; letter-spacing:-.03em; }
+      h1 { font-size:clamp(2.5rem,5.5vw,4.5rem); }
+      h2 { font-size:clamp(1.75rem,3.4vw,2.9rem); }
+      h3 { font-size:clamp(1.2rem,1.9vw,1.6rem); letter-spacing:-.02em; }
+      p { margin:0; }
+      .lede { color:var(--ink-soft); font-size:clamp(1.05rem,1.55vw,1.35rem); line-height:1.5; max-width:52rem; }
+      .sub { color:var(--muted); font-size:clamp(.95rem,1.25vw,1.1rem); line-height:1.5; }
+      .sub em, .lede em { font-style:italic; }
+      strong { color:var(--ink); }
+      .dim { color:var(--muted); }
+      s, .strike { color:var(--muted); text-decoration-thickness:.12em; }
+
+      .rule { height:1px; background:var(--border); border:0; margin:.35rem 0; }
+      .recap { display:flex; flex-wrap:wrap; gap:.5rem 1.75rem; color:var(--muted); font-size:clamp(.95rem,1.3vw,1.15rem); }
+      .recap s { margin-right:.35em; }
+      .specs { display:grid; grid-template-columns:10.5rem 1fr 10.5rem 1fr; column-gap:1.15rem; row-gap:.55rem; align-items:start; margin:0; }
+      .specs dt { margin:0; font-weight:700; font-size:.92rem; line-height:1.3; }
+      .specs dd { margin:0; color:var(--muted); font-size:.92rem; line-height:1.35; }
+
+      /* layout helpers */
+      .cols { display:grid; gap:clamp(1rem,2.5vw,2.25rem); align-items:start; }
+      .cols > *, .pair > *, .trio > * { min-width:0; }
+      .cols--2 { grid-template-columns:1fr 1fr; }
+      .pair { display:grid; grid-template-columns:1fr 1fr; gap:clamp(.75rem,2vw,1.5rem); align-items:start; }
+      .pair--stretch { align-items:stretch; }
+      .pair--stretch .card { height:100%; }
+      .trio { display:grid; grid-template-columns:1fr 1fr 1fr; gap:clamp(.5rem,1.5vw,1rem); align-items:start; }
+      .cols--wide-left { grid-template-columns:1.35fr 1fr; }
+      .cols--wide-right { grid-template-columns:1fr 1.35fr; }
+      .cols--end { align-items:end; }
+      .stack { display:grid; gap:.85rem; align-content:start; }
+      .stack--tight { gap:.5rem; }
+
+      /* big stat */
+      .stat { font-size:clamp(2.2rem,5vw,4rem); font-weight:800; letter-spacing:-.04em; line-height:1; color:var(--ink); }
+      .stat--accent { color:var(--accent); }
+      .stat-note { color:var(--muted); font-size:1rem; }
+      .stat-inline { display:flex; align-items:baseline; gap:.7rem; }
+      .stat-inline .stat-note { max-width:16rem; }
+      .stat-row { display:flex; justify-content:space-between; align-items:baseline; gap:1.5rem; }
+      .stat-row .stat-inline:last-child { flex-direction:row-reverse; text-align:right; }
+
+      /* cards */
+      .card { padding:1.1rem 1.25rem; border:1px solid var(--border); border-radius:.75rem; background:#fbfafc; }
+      .card--accent { border-color:var(--accent-line); background:var(--accent-soft); }
+      .card__tag { display:inline-block; margin-bottom:.4rem; color:var(--accent); font-size:.72rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+      .card h3 { margin-bottom:.35rem; }
+
+      /* labelled rows */
+      .rows { display:grid; gap:.55rem; }
+      .row { display:grid; grid-template-columns:15rem 1fr auto; gap:1rem; align-items:baseline;
+             padding:.7rem .9rem; border:1px solid var(--border); border-radius:.6rem; background:#fbfafc; }
+      .row__label { font-weight:700; }
+      .row__mid { color:var(--muted); font-size:1rem; }
+      .row__tag { font-size:.85rem; font-weight:700; white-space:nowrap; }
+      .tag-own { color:var(--ok); } .tag-no { color:var(--warn); } .tag-build { color:var(--accent); }
+
+      /* pipeline */
+      .pipe { display:grid; grid-template-columns:1fr auto 1fr auto 1fr auto 1fr; gap:.5rem; align-items:center; }
+      .pipe__node { padding:.7rem .9rem; border:1px solid var(--border-strong); border-radius:.5rem; background:#fbfafc; font-weight:600; font-size:clamp(.9rem,1.2vw,1.05rem); text-align:center; }
+      .pipe__node--narrow { border-color:var(--accent-line); background:var(--accent-soft); color:var(--accent); }
+      .pipe__arrow { color:var(--muted); font-size:1.2rem; text-align:center; }
+      .pipe--lg .pipe__node { display:flex; align-items:center; justify-content:center; min-height:4.25rem; padding:1.1rem 1rem; font-size:clamp(1rem,1.45vw,1.2rem); }
+      .pipe--lg .pipe__arrow { font-size:1.6rem; }
+
+      /* two-stage split */
+      .flow { display:grid; grid-template-columns:1fr auto 1fr; gap:1.25rem; align-items:stretch; }
+      .stage { display:grid; gap:.7rem; align-content:start; padding:1.45rem 1.5rem; border:1px solid var(--border); border-radius:.85rem; background:#fbfafc; }
+      .stage--plan { border-color:var(--accent-line); background:var(--accent-soft); }
+      .stage__num { color:var(--accent); font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+      .stage .sub { max-width:none; }
+      .gate { display:flex; align-items:center; gap:.75rem; padding:.5rem 0; color:var(--accent); font-weight:700; font-size:.9rem; }
+      .gate::before, .gate::after { content:""; flex:1; height:1px; background:var(--accent-line); }
+      .gate--h { flex-direction:column; justify-content:center; gap:.55rem; padding:0 .35rem; text-align:center; white-space:nowrap; line-height:1.2; }
+      .gate--h::before, .gate--h::after { flex:0 0 auto; width:1px; height:1.75rem; }
+
+      /* loop diagram (slide 22) */
+      .loop { display:grid; gap:.5rem; }
+      .loop__chain { display:flex; flex-wrap:wrap; align-items:stretch; gap:.4rem; }
+      .loop__node { flex:1 1 8rem; padding:.7rem .75rem; border:2px solid var(--border-strong); border-radius:.6rem; background:#fbfafc; font-size:.9rem; font-weight:700; text-align:center; }
+      .loop__node--built { border-style:solid; border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+      .loop__node--progress { border-style:solid; border-color:var(--ok); color:var(--ok); }
+      .loop__node--planned { border-style:dashed; color:var(--muted); }
+      .loop__status { display:block; margin-top:.15rem; font-weight:600; font-size:.8rem; font-style:italic; }
+      .loop__return { position:relative; height:2.5rem; }
+      .loop__return svg { width:100%; height:100%; overflow:visible; }
+      .loop__return-label { position:absolute; left:50%; top:.15rem; transform:translateX(-50%); padding:0 .5rem; background:var(--surface); font-size:.85rem; font-weight:700; }
+      .is-broken .loop__return-label { color:var(--warn); }
+
+      /* screenshots and placeholders */
+      figure { margin:0; }
+      .shot { min-width:0; }
+      .shot img { display:block; width:auto; max-width:100%; max-height:36vh; height:auto; margin-inline:auto; border:1px solid var(--border-strong); border-radius:.6rem; }
+      .shot--sm img { max-height:27vh; }
+      .shot--xs img { max-height:20vh; }
+      .shot--lg img { max-height:46vh; }
+      .shot figcaption { margin-top:.45rem; color:var(--muted); font-size:.85rem; text-align:center; }
+
+      .ph { display:grid; align-content:center; gap:.5rem; min-height:11rem; padding:1.25rem;
+            border:2px dashed var(--border-strong); border-radius:.75rem; background:repeating-linear-gradient(135deg,#fbfafc,#fbfafc 10px,#f6f4f9 10px,#f6f4f9 20px); }
+      .ph__tag { color:var(--accent); font-size:.7rem; font-weight:700; letter-spacing:.09em; text-transform:uppercase; }
+      .ph__text { color:var(--muted); font-size:.95rem; line-height:1.45; }
+      .ph--tall { min-height:17rem; }
+
+      /* quote */
+      .quote { padding-left:1rem; border-left:3px solid var(--accent); color:var(--ink-soft); font-size:clamp(1.05rem,1.6vw,1.4rem); font-style:italic; line-height:1.45; }
+
+      /* inline chips */
+      .chips { display:flex; flex-wrap:wrap; gap:.4rem; }
+      .chip { padding:.3rem .6rem; border:1px solid var(--border-strong); border-radius:999px; background:#fbfafc; font-size:.85rem; font-weight:600; }
+      .chip--on { border-color:var(--accent-line); background:var(--accent-soft); color:var(--accent); }
+
+      /* title slide — must not declare display, or it overrides .slide{display:none} */
+      .slide.title-slide.is-current { gap:1.5rem; }
+      .title-slide .byline, .byline { color:var(--muted); font-size:clamp(1rem,1.5vw,1.25rem); }
+      .byline strong { color:var(--ink); }
+
+      /* fragments (progressive builds) */
+      .fragment { opacity:0; transform:translateY(.35rem); transition:opacity .22s ease, transform .22s ease; }
+      .fragment.is-shown { opacity:1; transform:none; }
+
+      /* controls */
+      .controls { display:flex; align-items:center; justify-content:center; gap:.75rem; padding-top:1rem; }
+      button { min-width:6.5rem; padding:.6rem .9rem; border:1px solid var(--accent); border-radius:.5rem; color:#fff; background:var(--accent); cursor:pointer; font:inherit; font-weight:700; }
+      button:disabled { cursor:not-allowed; opacity:.4; }
+      button:focus-visible, a:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
+      .counter { min-width:7rem; color:var(--muted); font-variant-numeric:tabular-nums; text-align:center; font-size:.9rem; }
+      .slide__num { position:absolute; right:1.1rem; bottom:.8rem; color:#c9c3d4; font-size:.75rem; font-variant-numeric:tabular-nums; }
+
+      @media (max-width:60rem) {
+        .cols--2, .cols--wide-left, .cols--wide-right { grid-template-columns:1fr; }
+        .specs { grid-template-columns:9.5rem 1fr; }
+        .pipe { grid-template-columns:1fr; }
+        .pipe__arrow { justify-content:center; transform:rotate(90deg); }
+        .row { grid-template-columns:1fr; gap:.25rem; }
+      }
+
+      @media print {
+        @page { margin:.4in; size:landscape; }
+        body { background:#fff; }
+        .deck { display:block; min-height:auto; padding:0; }
+        .slide, .slide.is-current { display:grid; align-content:start; min-height:0; margin:0 0 .2in; break-after:page; box-shadow:none; border-color:#bbb; }
+        .fragment { opacity:1 !important; transform:none !important; }
+        .controls { display:none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck" aria-label="Rippling Paid Social Agent — Will Hunter">
+
+      <!-- 13 -->
+      <section class="slide title-slide is-centered" data-slide-id="paid-social-open" aria-label="Rippling Paid Social Agent">
+        <p class="eyebrow">Will Hunter · GTM Engineering</p>
+        <h1>Rippling Paid Social Agent</h1>
+        <p class="byline">An idea in, multiple brand-safe creatives out.</p>
+        <span class="slide__num">1</span>
+      </section>
+
+      <!-- 14 -->
+      <section class="slide" data-slide-id="picking-problem" aria-label="Creative was capping campaign velocity">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Creative was capping campaign velocity.</h2>
+        <div class="card">
+          <span class="card__tag">Why we started here</span>
+          <p class="sub">Sat with the domain experts on <strong>Meta</strong> and <strong>LinkedIn</strong>. Creative creation kept coming up as the constraint on campaign velocity.</p>
+        </div>
+        <hr class="rule">
+        <div class="cols cols--wide-left">
+            <figure class="shot">
+              <img src="screenshots/disorganized-figma.png" alt="A Figma canvas zoomed out, showing dozens of near-identical duplicated ad variants scattered across frames.">
+            </figure>
+            <div class="stack stack--tight">
+              <p class="sub">Brand built a template. Paid social hand-edited every variant: new copy, new image, new incentive, repeat.</p>
+              <p class="stat stat--accent">8–12 hrs / week</p>
+              <p class="sub"><strong>An experiment won?</strong> They rebuilt it by hand for every other Rippling product.</p>
+            </div>
+          </div>
+        <span class="slide__num">2</span>
+      </section>
+
+      <!-- 14 -->
+      <section class="slide" data-slide-id="decompose" aria-label="Before the agent: taking every ad apart">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Before the agent: taking every ad apart.</h2>
+        <p class="sub">The team already looked at performance. The work was manual, one experiment at a time, so the non-obvious patterns stayed hidden.</p>
+        <figure class="shot shot--lg">
+          <img src="screenshots/new-diagram-image.png" alt="A real Rippling IT ad annotated with its six component elements: headline, incentive, body copy, background, format and concept.">
+        </figure>
+        <div class="pair pair--stretch">
+          <div class="card card--accent">
+            <span class="card__tag">Scoring</span>
+            <h3>Every element gets scored on its own, across every ad we've run.</h3>
+          </div>
+          <div class="card">
+            <span class="card__tag">Lesson</span>
+            <h3>Built the data layer before any agent work.</h3>
+            <p class="sub">An agent is only as good as how easily it can find out what's true. The agent queries something simple. It never has to go exploring.</p>
+          </div>
+        </div>
+        <span class="slide__num">3</span>
+      </section>
+
+      <!-- 15 -->
+      <section class="slide is-centered" data-slide-id="zoom-out" aria-label="Ask what's true across everything we've run">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h3 class="dim"><s>Stop asking “did this ad win?”</s></h3>
+        <h1>Ask what's true across everything we've run.</h1>
+        <hr class="rule">
+        <div class="cols cols--wide-left">
+            <div class="pair">
+              <figure class="shot shot--sm">
+                <img src="screenshots/incentive-on.png" alt="A Rippling HR platform comparison ad with a free AirPods incentive badge in the lower left.">
+              </figure>
+              <figure class="shot shot--sm">
+                <img src="screenshots/incentive-off.png" alt="The same Rippling ad with the AirPods badge removed and the free gift line dropped from the body copy.">
+              </figure>
+            </div>
+            <div class="stack stack--tight">
+              <h3>A lot of concepts we rated highly were being carried by the incentive.</h3>
+              <p class="sub">Strip the incentive and the concept wasn't doing much on its own. A few held up unaided, and those are the ones we should keep experimenting with.</p>
+              <p class="sub">Not a criticism of anyone's judgement. It's a pattern that only shows up at that zoom level, and no single experiment would ever have surfaced it.</p>
+            </div>
+          </div>
+        <span class="slide__num">4</span>
+      </section>
+
+      <!-- 16 -->
+      <section class="slide" data-slide-id="plan-vs-pixels" aria-label="Separate the plan from the pixels">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Separate the plan from the pixels.</h2>
+        <p class="quote">“This ad format did very well for our IT product. Can you create a version of it for core HR, spend, and our global product?”</p>
+        <p class="sub">That plus the ad itself is the entire input. A strategy problem and a rendering problem aren't the same problem.</p>
+        <div class="flow">
+          <div class="stage stage--plan">
+            <span class="stage__num">Stage 1 · Plan</span>
+            <h3>What's changing, what's held constant</h3>
+            <p class="sub">Checked for reasoning, approved claims, and real evidence.</p>
+          </div>
+          <p class="gate gate--h">Human<br>approves</p>
+          <div class="stage">
+            <span class="stage__num">Stage 2 · Generate</span>
+            <h3>Execute the approved plan</h3>
+            <p class="sub">Checked for fidelity to that plan, not whether the art is good.</p>
+          </div>
+        </div>
+        <figure class="shot">
+          <img src="screenshots/plan-crop.png" alt="The proposed plan: a direction reading product-line reposition, IT ad template adapted to Core HR, Spend and Global, followed by three numbered variants each with its exact headline and three bullet lines.">
+          <figcaption>Marketers align on the strategic direction before generation begins.</figcaption>
+        </figure>
+        <span class="slide__num">5</span>
+      </section>
+
+      <section class="slide" data-slide-id="plan-guardrails" aria-label="Guardrails on the plan">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Guardrails on the plan.</h2>
+        <p class="sub">Before a pixel is rendered.</p>
+        <figure class="shot">
+          <img src="screenshots/claims-crop.png" alt="The claims field of a plan, listing eight approved claim IDs such as EXT-GLOBAL-F9FAE070 and EXT-FINANCEACCOUNTANT-EDE0A536.">
+          <figcaption>Every line of copy traces back to an approved claim ID.</figcaption>
+        </figure>
+        <div class="card card--accent">
+          <span class="card__tag">Claims</span>
+          <h3>The check corrects rather than blocks.</h3>
+          <p class="sub">The model drafts “save 95% of your workload” when the real number is 90. It doesn't kill the run. It points the planner at the right number and carries on.</p>
+        </div>
+        <div class="stack">
+          <span class="card__tag">Other guardrails</span>
+          <div class="trio">
+            <div class="stack stack--tight">
+              <h3>One experiment at a time</h3>
+              <p class="sub">Only one thing varies.</p>
+            </div>
+            <div class="stack stack--tight">
+              <h3>Product-line completeness</h3>
+              <p class="sub">Every leftover from the source product is replaced, neutralized, or kept on purpose.</p>
+            </div>
+            <div class="stack stack--tight">
+              <h3>Source grounding</h3>
+              <p class="sub">Base assets exist. Doesn't invent copy, badges, or audience signals.</p>
+            </div>
+          </div>
+        </div>
+        <span class="slide__num">6</span>
+      </section>
+
+      <section class="slide" data-slide-id="didnt-work" aria-label="Three methods that didn't work">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Three methods that didn't work.</h2>
+        <p class="lede">The failures are what pointed at the answer.</p>
+        <div class="card">
+          <span class="card__tag">Attempt 1</span>
+          <h3>Pure generation</h3>
+          <p class="sub">The model reinvents the ad every time. Same prompt, wildly different results, nothing holding still between variants. You can't hand that to a brand team.</p>
+        </div>
+        <div class="card">
+          <span class="card__tag">Attempt 2</span>
+          <h3>Deterministic image creation and editing</h3>
+          <p class="sub">Total control, and consistently sloppy output. It looked assembled rather than designed.</p>
+        </div>
+        <div class="card">
+          <span class="card__tag">Attempt 3</span>
+          <h3>Driving Figma through its API</h3>
+          <p class="sub">Only part of what we needed was exposed, and what was exposed hit rate limits and ran too slowly for the volume we wanted.</p>
+        </div>
+        <span class="slide__num">7</span>
+      </section>
+
+      <!-- 18 -->
+      <section class="slide" data-slide-id="edit-endpoint" aria-label="Editing beat generating">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h1>Editing beat generating.</h1>
+        <div class="card">
+          <span class="card__tag">The edit endpoint</span>
+          <p class="sub">Hand it the existing ad and a clearly defined prompt about what we're switching. Everything else stays identical.</p>
+        </div>
+        <div class="trio">
+          <figure class="shot shot--sm">
+            <img src="screenshots/paid-social-original-ad.png" alt="Source IT ad: Meet IT that runs itself.">
+            <figcaption>Original</figcaption>
+          </figure>
+          <figure class="shot shot--sm">
+            <img src="screenshots/paid-social-core-output.png" alt="Edited HR variant: Meet HR that runs itself, same layout and photography.">
+          </figure>
+          <figure class="shot shot--sm">
+            <img src="screenshots/paid-social-global-output.png" alt="Edited Global variant: Meet Global that runs itself, same layout and photography.">
+          </figure>
+        </div>
+        <div class="card card--accent">
+          <h3>Photoshop at scale.</h3>
+          <p class="sub">Editing means you can trust that only the experiment changes. Layout and the legal footer stay constant.</p>
+        </div>
+        <span class="slide__num">8</span>
+      </section>
+
+      <section class="slide" data-slide-id="guardrails" aria-label="Did we execute the approved plan">
+        <p class="eyebrow">Paid Social Agent</p>
+        <p class="lede dim"><s>Is this asset good? Is it brand safe?</s></p>
+        <h2>Did we execute the approved plan?</h2>
+        <div class="card">
+          <span class="card__tag">The old question</span>
+          <p class="sub">Subjective. No fixed reference. Fires constantly on things that are fine.</p>
+        </div>
+        <figure class="shot shot--lg">
+          <img src="screenshots/execution-guardrails.png" alt="An HR variant of the ad beside its quality checks: font, layout, wardrobe and background unchanged all passed, product line coherence passed, ready to use.">
+          <figcaption>Layout, type, and photography held. The product-line copy is what changed.</figcaption>
+        </figure>
+        <div class="card card--accent">
+          <span class="card__tag">The new question</span>
+          <p class="sub">The plan is a contract. The source ad is a reference. Did the swap happen, and nothing else?</p>
+        </div>
+        <span class="slide__num">9</span>
+      </section>
+
+      <!-- 20 -->
+      <section class="slide" data-slide-id="unlocked" aria-label="Expanding outside the paid social team">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>Expanding outside the paid social team.</h2>
+        <p class="sub">~30 people in marketing use it. ABM and the vertical teams are using it too.</p>
+        <div class="stat-inline">
+          <p class="stat stat--accent">~50</p>
+          <p class="stat-note">ads live, still ramping</p>
+        </div>
+        <figure class="shot shot--lg">
+          <img src="screenshots/abm-variants-crop.png" alt="Three account-based ads generated in one run, each naming its target company: Security Compass merging two teams, AlayaCare scaling fast after a fifty million dollar raise, and Absorb Software ready for global payroll.">
+        </figure>
+        <p class="sub">Hyper-personalized ads for named accounts. Doing this by hand was never feasible.</p>
+        <span class="slide__num">10</span>
+      </section>
+
+      <!-- 21 -->
+      <section class="slide" data-slide-id="primer" aria-label="$130K a year to build audiences we can build ourselves">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h1>$130K a year to build audiences we can build ourselves.</h1>
+        <p class="lede"><s>Primer</s>, our tool for building Meta audiences. Churned.</p>
+        <hr class="rule">
+        <p class="sub">What Primer did was match hashed personal emails to Meta profiles. Once I understood that, it was clear we could do the matching ourselves.</p>
+        <div class="fragment">
+          <h2>The real win isn't the $130K.</h2>
+          <div class="cols cols--2" style="margin-top:.9rem">
+            <div class="card card--accent">
+              <h3>We keep the hashed emails.</h3>
+              <p class="sub">So audiences persist and compound instead of being rebuilt for every campaign.</p>
+            </div>
+            <div class="card card--accent">
+              <h3>Coordinated, full-funnel targeting.</h3>
+              <p class="sub">The same person reached consistently across the funnel, instead of each channel working off its own list.</p>
+            </div>
+          </div>
+        </div>
+        <span class="slide__num">11</span>
+      </section>
+
+      <!-- 22 -->
+      <section class="slide" data-slide-id="whats-next" aria-label="What's next">
+        <p class="eyebrow">Paid Social Agent</p>
+        <h2>What's next.</h2>
+        <p class="lede">Image creation is built. Building and trafficking is in progress.</p>
+        <div class="loop">
+          <div class="loop__chain">
+            <span class="loop__node loop__node--built">Image creation<span class="loop__status">Built</span></span>
+            <span class="loop__node loop__node--progress">1 · Building &amp; Trafficking<span class="loop__status">In progress</span></span>
+            <span class="loop__node loop__node--planned">2 · Top of Funnel Health</span>
+            <span class="loop__node loop__node--planned">3 · Bidding &amp; Budget</span>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card card--accent">
+            <span class="card__tag">1 · Building &amp; trafficking · in progress</span>
+            <p class="sub">Campaign creation is still manual, and it caps throughput no matter how fast creative gets.</p>
+          </div>
+          <div class="card">
+            <span class="card__tag">2 · Top of funnel health</span>
+            <p class="sub">Are the leads real and in-ICP, and do platform numbers match the warehouse?</p>
+          </div>
+          <div class="card">
+            <span class="card__tag">3 · Bidding &amp; budget</span>
+            <p class="sub">Move spend on pipeline signal, not a weekly review.</p>
+          </div>
+        </div>
+        <span class="slide__num">12</span>
+      </section>
+
+
+      <nav class="controls" aria-label="Slide controls">
+        <button id="previous" type="button" aria-label="Previous step or slide">Previous</button>
+        <output id="counter" class="counter" aria-live="polite" aria-atomic="true"></output>
+        <button id="next" type="button" aria-label="Next step or slide">Next</button>
+      </nav>
+    </main>
+
+    <script>
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      const previous = document.querySelector('#previous');
+      const next = document.querySelector('#next');
+      const counter = document.querySelector('#counter');
+      let current = 0, step = 0;
+
+      const fragmentsOf = index => Array.from(slides[index].querySelectorAll('.fragment'));
+
+      function indexFromHash() {
+        const id = window.location.hash.slice(1);
+        const index = slides.findIndex(slide => slide.dataset.slideId === id);
+        return index >= 0 ? index : 0;
+      }
+
+      function render(updateHash = true) {
+        slides.forEach((slide, slideIndex) => {
+          const isCurrent = slideIndex === current;
+          slide.classList.toggle('is-current', isCurrent);
+          slide.setAttribute('aria-hidden', String(!isCurrent));
+        });
+        const fragments = fragmentsOf(current);
+        fragments.forEach((fragment, fragmentIndex) => fragment.classList.toggle('is-shown', fragmentIndex < step));
+
+        previous.disabled = current === 0 && step === 0;
+        next.disabled = current === slides.length - 1 && step === fragments.length;
+        const total = fragments.length;
+        counter.textContent = total
+          ? `Slide ${current + 1} of ${slides.length} · ${step + 1}/${total + 1}`
+          : `Slide ${current + 1} of ${slides.length}`;
+        if (updateHash) window.location.hash = slides[current].dataset.slideId;
+      }
+
+      function goNext() {
+        if (step < fragmentsOf(current).length) { step += 1; }
+        else if (current < slides.length - 1) { current += 1; step = 0; }
+        render();
+      }
+      function goPrevious() {
+        if (step > 0) { step -= 1; }
+        else if (current > 0) { current -= 1; step = fragmentsOf(current).length; }
+        render();
+      }
+      function goToSlide(index, showAll = false) {
+        current = Math.max(0, Math.min(index, slides.length - 1));
+        step = showAll ? fragmentsOf(current).length : 0;
+        render();
+      }
+
+      previous.addEventListener('click', goPrevious);
+      next.addEventListener('click', goNext);
+      window.addEventListener('hashchange', () => { current = indexFromHash(); step = 0; render(false); });
+
+      const NEXT_KEYS = new Set(['ArrowRight', 'ArrowDown', 'PageDown', ' ']);
+      const PREVIOUS_KEYS = new Set(['ArrowLeft', 'ArrowUp', 'PageUp']);
+      document.addEventListener('keydown', event => {
+        const target = event.target;
+        if (target instanceof Element && target.closest('a[href],button,input,select,textarea,[contenteditable="true"]')) return;
+        if (NEXT_KEYS.has(event.key)) { event.preventDefault(); goNext(); }
+        else if (PREVIOUS_KEYS.has(event.key)) { event.preventDefault(); goPrevious(); }
+        else if (event.key === 'Home') { event.preventDefault(); goToSlide(0); }
+        else if (event.key === 'End') { event.preventDefault(); goToSlide(slides.length - 1, true); }
+      });
+
+      current = indexFromHash();
+      render(false);
+    </script>
+  </body>
+</html>
